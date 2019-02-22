@@ -1,0 +1,161 @@
+
+```{r}
+#use this chunk of code
+#didn't use all packages but cannot remember exactly which ones you'll need
+
+#install.packages("reticulate")
+#install.packages("naniar")
+#install.packages("tm")
+#install.packages("proxy")
+#install.packages("quanteda")
+#install.packages("textTinyR")
+#install.packages("koRpus")
+library(reticulate)
+library(dplyr)
+library(naniar)
+library(tidyr)
+library(tm)
+library(proxy)
+library(quanteda)  #need to download this one
+library(textTinyR)
+library(koRpus)
+```
+
+
+
+
+
+
+```{r, creating sub_articles}
+#use this chunk of code
+#creates sub_articles which is like our training data
+
+article1 <- read.csv("C:/Users/Hugo Rosales/Documents/news dataset/articles1.csv")
+article2 <- read.csv("C:/Users/Hugo Rosales/Documents/news dataset/articles2.csv")
+article3 <- read.csv("C:/Users/Hugo Rosales/Documents/news dataset/articles3.csv")
+
+articles <- rbind.data.frame(article1, article2, article3)
+
+View(articles)
+
+#articles[order(as.Date(articles$date, format="%Y-%m-%d")),]
+
+#articles <- articles[as.Date(articles$date, format="%Y-%m-%d"),]
+
+#articles[order(articles$date),]
+
+#apply(articles,date,sort)
+
+articles$date <- as.Date(articles$date, format="%Y-%m-%d")
+articles <- articles[order(articles$date, decreasing = F),]
+articles <- articles %>% 
+  na.omit() %>%
+  replace_with_na(replace = list(url = ""))
+
+sub_articles = articles[4669:4689,]
+View(sub_articles)
+
+write.csv(sub_articles, file = "artices_training.csv")
+
+#sub_articles <- na.omit(sub)
+```
+
+
+```{r, playing with data}
+
+mean(sub_articles$date)
+boxplot(sub_articles$date)
+median(sub_articles$date)
+
+```
+
+
+```{r, doesn't work}
+documents = sub_articles$content
+
+train_docs_id = documents[as.vector(sapply(documents, function(i) substr(i, 1, 5) == "train"))]
+test_docs_id = documents[as.vector(sapply(documents, function(i) substr(i,1,4) == "test"))]
+
+train_docs <- lapply(1:length(train_docs_id),function(x)
+sub_articles$content(train_docs_id[x]))
+test_docs = lapply(1:length(test_docs_id), function(x)
+sub_articles$content(test_docs_id[x]))
+```
+
+```{r, fixes weird symbols}
+#use this code
+#in the documents there were weird symbols that needed to be fixed so that I could stem the tokens
+sub_articles$content <- as.character(sub_articles$content)
+
+sub_articles$content <- iconv(sub_articles$content, 'utf-8', 'ascii', sub='')
+```
+
+
+```{r, creating tf idf matrix}
+#use this code
+#creates the term document matrix and tokens
+
+doc_corpus <- Corpus( VectorSource(sub_articles$content))
+
+control_list <- list(removePunctuation = T, stopwords = T, tolower = T, wordLengths = c(3,100), stemming = T)
+
+
+tdm <- TermDocumentMatrix(doc_corpus, control = control_list)
+
+tf <- as.matrix(tdm)
+View(tf)
+
+
+```
+
+
+```{r, second option for tokens}
+#this also creates tokens but I prefer the other one so don't use this code
+clust_vec <- textTinyR::tokenize_transform_vec_docs(object = sub_articles$content, 
+                                                    as_token = T, to_lower = T, 
+                                                    remove_numbers = F, 
+                                                    trim_token = T, 
+                                                    split_string = T, 
+                                                    split_separator = "\r\n\t.,;:()?!//", 
+                                                    remove_stopwords = T, 
+                                                    min_num_char = 3, 
+                                                    max_num_char = 100, 
+                                                    verbose = T)
+
+View(clust_vec)
+
+```
+
+
+
+
+```{r, doesn't work}
+#junk code not useful
+tokens(doc_corpus, what = "word",
+       remove_punct = F,
+       remove_symbols = F,
+       remove_separators = F,
+       remove_url = F,
+       include_docvars = T)
+doc_corpus2 <- corpus(sub_articles$content)
+tokens(doc_corpus)
+```
+
+```{r}
+#junk code that I was messing with not useful
+sub_articles$content <- as.character(sub_articles$content)
+
+sub_articles$content <- iconv(enc2utf8(sub_articles$content),sub = "byte")
+
+doc_corpus3 <- Corpus( VectorSource(sub_articles$content))
+
+control_list <- list(removePunctuation = T, stopwords = T, tolower = T, removeNumbers = T, wordLengths = c(3,100), stemming = T)
+
+
+tdm <- TermDocumentMatrix(doc_corpus, control = control_list)
+
+tf <- as.matrix(tdm)
+View(tf)
+class(sub_articles$content)
+```
+
